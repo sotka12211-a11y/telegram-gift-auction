@@ -2,24 +2,34 @@
 
 Demo implementation of Telegram Gift Auction mechanics.
 
-Проект сделан в рамках Backend Auction Challenge.
-Реализуется логика аукциона цифровых товаров с раундами, ставками и anti-sniping.
+## Description
 
----
+This project demonstrates backend auction mechanics inspired by Telegram Gift Auctions:
+- auction rounds
+- bids
+- anti-sniping
+- user balances
 
-## 🧩 Стек
+The goal is to show correct money handling and concurrent-safe auction logic.
+
+## Tech Stack
 
 - Node.js
-- NestJS
 - TypeScript
-- MongoDB (в процессе)
-- GitHub Codespaces
+- NestJS
+- MongoDB
 
----
+## Features (planned)
 
-## ⚙️ Запуск проекта
+- Auction rounds
+- Bidding system
+- Anti-sniping logic
+- Balance management
+- Ranking
+- Minimal UI for demo
 
-### 1️⃣ Клонировать репозиторий
+## How to run (later)
+
 ```bash
-git clone https://github.com/<username>/telegram-gift-auction.git
-cd telegram-gift-auction
+npm install
+npm run start:dev
