@@ -1,41 +1,98 @@
 import { randomUUID } from 'crypto';
 
-// ===== TYPES ===== type User = { id: string; name: string; balance: number }; type Lot = { id: string; title: string; price: number; endsAt: number; owner?: string }; type Bid = { userId: string; amount: number };
+type User = { id: string; name: string; balance: number };
+type Lot = { id: string; title: string; price: number; endsAt: number };
+type Bid = { userId: string; amount: number };
 
-// ===== USERS & BOTS ===== const player: User = { id: 'player', name: 'You', balance: 10000 };
+const player: User = { id: 'player', name: 'You', balance: 20000 };
 
-const botCount = Math.floor(Math.random() * 3) + 3; // 3–5 bots const bots: User[] = Array.from({ length: botCount }).map((_, i) => ({ id: bot-${i}, name: Bot ${i + 1}, balance: Math.floor(Math.random() * 8000) + 3000, }));
+// ===== BOTS 3–5 =====
+const botCount = Math.floor(Math.random() * 3) + 3;
+const bots: User[] = Array.from({ length: botCount }).map((_, i) => ({
+  id: `bot-${i}`,
+  name: `Bot_${i + 1}`,
+  balance: Math.floor(Math.random() * 15000) + 5000,
+}));
 
 const users = [player, ...bots];
 
-// ===== LOTS ===== const baseLots = [ '🚗 Tesla Model X', '🏠 Luxury House', '💎 Diamond Watch', '🏝️ Private Villa', '📱 iPhone Ultra', ];
+// ===== LOTS =====
+const lots = [
+  '🚗 Tesla Model X',
+  '🏠 Luxury House',
+  '💎 Diamond Watch',
+  '🏝️ Private Villa',
+  '📱 iPhone 15 Pro',
+];
 
-let currentLot: Lot = createLot(); let currentBid: Bid | null = null;
+let currentLot: Lot;
+let currentBid: Bid | null = null;
 
-// ===== FUNCTIONS ===== function createLot(): Lot { return { id: randomUUID(), title: baseLots[Math.floor(Math.random() * baseLots.length)], price: Math.floor(Math.random() * 500) + 500, endsAt: Date.now() + 30000, // 30 sec }; }
+// ===== CREATE LOT =====
+function newLot(): Lot {
+  return {
+    id: randomUUID(),
+    title: lots[Math.floor(Math.random() * lots.length)],
+    price: Math.floor(Math.random() * 1000) + 500,
+    endsAt: Date.now() + 20000, // 20 сек
+  };
+}
 
-function placeBid(user: User, amount: number) { if (user.balance < amount) return; if (amount <= currentLot.price) return;
+// ===== START =====
+currentLot = newLot();
+console.log(`🆕 NEW LOT: ${currentLot.title}`);
 
-currentLot.price = amount; currentBid = { userId: user.id, amount }; console.log(💰 ${user.name} bids ${amount}); }
+// ===== BID =====
+function bid(user: User, amount: number) {
+  if (amount <= currentLot.price) return;
+  if (user.balance < amount) return;
 
-function finishAuction() { console.log(\n🏁 AUCTION FINISHED: ${currentLot.title});
+  currentLot.price = amount;
+  currentBid = { userId: user.id, amount };
 
-if (currentBid) { const winner = users.find(u => u.id === currentBid!.userId)!; winner.balance -= currentBid.amount; currentLot.owner = winner.name;
+  console.log(`💰 ${user.name} bids $${amount}`);
+}
 
-console.log(`🎉 WINNER: ${winner.name}`);
-console.log(`💳 New balance: ${winner.balance}`);
+// ===== FINISH =====
+function finish() {
+  console.log(`\n🏁 FINISHED: ${currentLot.title}`);
 
-} else { console.log('❌ No bids placed'); }
+  if (currentBid) {
+    const winner = users.find(u => u.id === currentBid!.userId)!;
+    winner.balance -= currentBid.amount;
 
-console.log('🔁 Starting new lot...\n'); currentLot = createLot(); currentBid = null; }
+    console.log(`🎉 WINNER: ${winner.name}`);
+    console.log(`💳 BALANCE: $${winner.balance}`);
+  } else {
+    console.log('❌ No bids');
+  }
 
-// ===== BOT LOGIC ===== setInterval(() => { bots.forEach(bot => { if (Math.random() < 0.3) { const inc = Math.floor(Math.random() * 200) + 50; placeBid(bot, currentLot.price + inc); } }); }, 3000);
+  currentBid = null;
+  currentLot = newLot();
+  console.log(`\n🔁 NEW LOT: ${currentLot.title}`);
+}
 
-// ===== TIMER (INVERTER) ===== setInterval(() => { const left = Math.floor((currentLot.endsAt - Date.now()) / 1000); process.stdout.write(\r⏱ ${currentLot.title} | ${left}s | ${currentLot.price} );
+// ===== BOT ACTIVITY =====
+setInterval(() => {
+  bots.forEach(bot => {
+    if (Math.random() < 0.4) {
+      const inc = Math.floor(Math.random() * 300) + 100;
+      bid(bot, currentLot.price + inc);
+    }
+  });
+}, 2500);
 
-if (left <= 0) { finishAuction(); } }, 1000);
+// ===== TIMER =====
+setInterval(() => {
+  const left = Math.max(0, Math.floor((currentLot.endsAt - Date.now()) / 1000));
+  process.stdout.write(`\r⏱ ${currentLot.title} | ${left}s | $${currentLot.price}   `);
 
-// ===== PLAYER EXAMPLE BID ===== setTimeout(() => { placeBid(player, currentLot.price + 300); }, 7000);
+  if (left === 0) finish();
+}, 1000);
 
-console.log('🚀 Auction system started');
+// ===== PLAYER DEMO =====
+setTimeout(() => {
+  bid(player, currentLot.price + 500);
+}, 6000);
 
+console.log('\n🚀 Auction started\n');
