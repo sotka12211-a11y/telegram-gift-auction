@@ -1,55 +1,146 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Telegram Gift Auction</title>
-  <style>
-    body { font-family: Arial; background:#f4f6f8; padding:20px }
-    .card { background:#fff; padding:20px; border-radius:10px; margin-bottom:20px }
-    button { padding:10px; width:100% }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telegram Gift Auction</title>
+
+<style>
+body{margin:0;background:#f2f4f8;font-family:system-ui}
+header{background:#0088cc;color:#fff;padding:16px;text-align:center;font-size:22px;font-weight:700}
+.container{max-width:480px;margin:16px auto}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 4px 10px rgba(0,0,0,.08)}
+.title{font-size:20px;font-weight:700}
+.timer{color:red;font-weight:700}
+button{width:100%;padding:12px;margin-top:8px;background:#0088cc;color:#fff;border:none;border-radius:8px;font-size:16px}
+input{width:100%;padding:10px;margin-top:8px}
+.balance{text-align:center;font-size:18px;font-weight:700}
+.inventory-item{border-top:1px solid #ddd;padding-top:8px;margin-top:8px}
+.sell{background:#28a745}
+</style>
 </head>
+
 <body>
 
-<h1>Telegram Gift Auction</h1>
+<header>Telegram Gift Auction</header>
 
-<div class="card">
-  <h2 id="title"></h2>
-  <p>💰 Ставка: $<span id="price"></span></p>
-  <p>⏱ Время: <span id="time"></span> сек</p>
-  <p>👑 Последний: <span id="last"></span></p>
+<div class="container">
 
-  <input id="amount" placeholder="Ваша ставка" />
-  <button onclick="bid()">Сделать ставку</button>
+<div class="balance">
+💰 Баланс: $<span id="balance">10000</span>
 </div>
 
+<div id="auction"></div>
+
 <div class="card">
-  💳 Баланс: $<span id="balance"></span>
+<div class="title">🎒 Инвентарь</div>
+<div id="inventory">Пусто</div>
+</div>
+
 </div>
 
 <script>
-async function load() {
-  const r = await fetch('http://localhost:3000/state');
-  const d = await r.json();
+let balance = 10000;
+let inventory = [];
 
-  title.innerText = d.lot.title;
-  price.innerText = d.lot.price;
-  time.innerText = d.timeLeft;
-  last.innerText = d.lastBid ? d.lastBid.user : '—';
-  balance.innerText = d.balance;
+const lots = [
+ "🚗 Tesla Model X",
+ "🏠 Luxury House",
+ "📱 iPhone 15 Pro",
+ "🏝 Private Villa",
+ "💎 Diamond Watch"
+];
+
+const bots = Array.from({length:Math.floor(Math.random()*3)+3})
+.map((_,i)=>({
+ name:`Bot_${i+1}`,
+ balance:Math.floor(Math.random()*8000)+3000
+}));
+
+let lot, price, time, lastBid;
+
+function newLot(){
+ lot = lots[Math.floor(Math.random()*lots.length)];
+ price = Math.floor(Math.random()*1000)+500;
+ time = 30;
+ lastBid = "—";
+ render();
 }
 
-async function bid() {
-  const amount = +document.getElementById('amount').value;
-  await fetch('http://localhost:3000/bid', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ amount })
-  });
+function render(){
+ document.getElementById("auction").innerHTML = `
+ <div class="card">
+  <div class="title">${lot}</div>
+  <div>💵 Ставка: $${price}</div>
+  <div>⏱ Время: <span class="timer">${time}</span> сек</div>
+  <div>👑 Последний: ${lastBid}</div>
+  <input id="bid" placeholder="Ваша ставка">
+  <button onclick="playerBid()">Сделать ставку</button>
+ </div>`;
+ document.getElementById("balance").innerText = balance;
+ renderInventory();
 }
 
-setInterval(load, 1000);
-load();
+function playerBid(){
+ const v = Number(document.getElementById("bid").value);
+ if(v>price && v<=balance){
+  price=v;
+  lastBid="Вы";
+ }
+}
+
+function renderInventory(){
+ const el = document.getElementById("inventory");
+ if(inventory.length===0){
+  el.innerText="Пусто";
+  return;
+ }
+ el.innerHTML="";
+ inventory.forEach((item,i)=>{
+  el.innerHTML+=`
+  <div class="inventory-item">
+   ${item.title} — $${item.price}
+   <button class="sell" onclick="sell(${i})">Продать</button>
+  </div>`;
+ });
+}
+
+function sell(i){
+ const item = inventory[i];
+ const profit = Math.floor(item.price*(Math.random()*0.2+0.1));
+ balance += item.price + profit;
+ inventory.splice(i,1);
+ render();
+ alert(`💸 Продано!\n+ $${item.price+profit}`);
+}
+
+setInterval(()=>{
+ bots.forEach(bot=>{
+  if(Math.random()<0.25){
+   const inc=Math.floor(Math.random()*200)+50;
+   if(bot.balance>price+inc){
+    price+=inc;
+    lastBid=bot.name;
+   }
+  }
+ });
+ render();
+},4000);
+
+setInterval(()=>{
+ time--;
+ if(time<=0){
+  if(lastBid==="Вы"){
+   balance-=price;
+   inventory.push({title:lot,price});
+   alert(`🎉 Вы выиграли!\n${lot}\nЦена: $${price}`);
+  }
+  newLot();
+ }
+ render();
+},1000);
+
+newLot();
 </script>
 
 </body>
