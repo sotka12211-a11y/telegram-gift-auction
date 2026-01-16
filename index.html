@@ -1,143 +1,55 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Telegram Gift Auction</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f2f2f2;
-}
-header {
-  background: #0088cc;
-  color: white;
-  padding: 14px;
-  text-align: center;
-}
-.container {
-  padding: 14px;
-}
-.lot {
-  background: white;
-  border-radius: 10px;
-  padding: 14px;
-  margin-bottom: 14px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-.lot h2 {
-  margin: 0 0 6px;
-}
-.timer {
-  color: red;
-  font-weight: bold;
-}
-input {
-  width: 100%;
-  padding: 10px;
-  margin-top: 6px;
-}
-button {
-  width: 100%;
-  margin-top: 6px;
-  padding: 10px;
-  background: #0088cc;
-  color: white;
-  border: none;
-  border-radius: 6px;
-}
-.log {
-  font-size: 14px;
-  margin-top: 6px;
-}
-</style>
+  <meta charset="UTF-8" />
+  <title>Telegram Gift Auction</title>
+  <style>
+    body { font-family: Arial; background:#f4f6f8; padding:20px }
+    .card { background:#fff; padding:20px; border-radius:10px; margin-bottom:20px }
+    button { padding:10px; width:100% }
+  </style>
 </head>
-
 <body>
 
-<header>
-  <h1>Telegram Gift Auction</h1>
-</header>
+<h1>Telegram Gift Auction</h1>
 
-<div class="container" id="lots"></div>
+<div class="card">
+  <h2 id="title"></h2>
+  <p>💰 Ставка: $<span id="price"></span></p>
+  <p>⏱ Время: <span id="time"></span> сек</p>
+  <p>👑 Последний: <span id="last"></span></p>
+
+  <input id="amount" placeholder="Ваша ставка" />
+  <button onclick="bid()">Сделать ставку</button>
+</div>
+
+<div class="card">
+  💳 Баланс: $<span id="balance"></span>
+</div>
 
 <script>
-const bots = ["Bot_Alpha", "Bot_X", "Bot_777", "Bot_Lux"];
+async function load() {
+  const r = await fetch('http://localhost:3000/state');
+  const d = await r.json();
 
-const lots = [
-  { id: 1, name: "🚗 Tesla Model X", price: 1000, time: 30 },
-  { id: 2, name: "🏠 Luxury House", price: 5000, time: 35 },
-  { id: 3, name: "📱 iPhone 15 Pro", price: 800, time: 25 },
-  { id: 4, name: "🏝️ Private Villa", price: 10000, time: 40 }
-];
+  title.innerText = d.lot.title;
+  price.innerText = d.lot.price;
+  time.innerText = d.timeLeft;
+  last.innerText = d.lastBid ? d.lastBid.user : '—';
+  balance.innerText = d.balance;
+}
 
-function render() {
-  const container = document.getElementById("lots");
-  container.innerHTML = "";
-
-  lots.forEach(lot => {
-    container.innerHTML += `
-      <div class="lot">
-        <h2>${lot.name}</h2>
-        <p>Ставка: <b>$<span id="price-${lot.id}">${lot.price}</span></b></p>
-        <p>Время: <span class="timer" id="time-${lot.id}">${lot.time}</span> сек</p>
-
-        <input type="number" id="input-${lot.id}" placeholder="Ваша ставка">
-        <button onclick="userBid(${lot.id})">Сделать ставку</button>
-
-        <div class="log" id="log-${lot.id}"></div>
-      </div>
-    `;
+async function bid() {
+  const amount = +document.getElementById('amount').value;
+  await fetch('http://localhost:3000/bid', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ amount })
   });
 }
 
-function userBid(id) {
-  const lot = lots.find(l => l.id === id);
-  const input = document.getElementById(`input-${id}`);
-  const bid = Number(input.value);
-
-  if (bid > lot.price) {
-    lot.price = bid;
-    document.getElementById(`price-${id}`).innerText = bid;
-    document.getElementById(`log-${id}`).innerText = "Вы сделали ставку";
-
-    if (lot.time < 5) lot.time += 5; // anti-sniping
-  }
-}
-
-function botBid() {
-  const lot = lots[Math.floor(Math.random() * lots.length)];
-  const bot = bots[Math.floor(Math.random() * bots.length)];
-  const bid = lot.price + Math.floor(Math.random() * 500 + 50);
-
-  lot.price = bid;
-  document.getElementById(`price-${lot.id}`).innerText = bid;
-  document.getElementById(`log-${lot.id}`).innerText =
-    bot + " сделал ставку $" + bid;
-
-  if (lot.time < 5) lot.time += 5;
-}
-
-function startTimers() {
-  setInterval(() => {
-    lots.forEach(lot => {
-      if (lot.time > 0) {
-        lot.time--;
-        document.getElementById(`time-${lot.id}`).innerText = lot.time;
-
-        if (lot.time === 0) {
-          alert("🎉 Лот выигран: " + lot.name);
-        }
-      }
-    });
-  }, 1000);
-}
-
-render();
-startTimers();
-setInterval(botBid, 6000);
+setInterval(load, 1000);
+load();
 </script>
 
 </body>
