@@ -7,201 +7,228 @@
 
 <style>
 body {
+  margin: 0;
   font-family: Arial, sans-serif;
-  background:#111;
-  color:#fff;
-  padding:20px;
+  background: #f2f2f2;
 }
-h1 { margin-bottom:10px }
+
+.container {
+  max-width: 420px;
+  margin: auto;
+  padding: 16px;
+}
+
 .card {
-  background:#1c1c1c;
-  padding:15px;
-  border-radius:10px;
-  margin-bottom:15px;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 10px rgba(0,0,0,.1);
 }
-input, button {
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  font-size:16px;
-  border-radius:8px;
-  border:none;
+
+h1 {
+  text-align: center;
 }
+
+input {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  margin-top: 8px;
+}
+
 button {
-  background:#0d6efd;
-  color:#fff;
+  width: 100%;
+  padding: 14px;
+  margin-top: 10px;
+  font-size: 16px;
+  background: #0095ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
 }
-button.secondary {
-  background:#198754;
+
+button:active {
+  background: #0077cc;
 }
-.info span {
-  font-weight:bold;
+
+#inventory div {
+  background: #eee;
+  padding: 8px;
+  border-radius: 6px;
+  margin-top: 6px;
 }
-#overlay {
-  display:none;
-  position:fixed;
-  top:0;left:0;
-  width:100%;height:100%;
-  background:#0d6efd;
-  color:white;
-  z-index:9999;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
+
+#winScreen {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.9);
+  color: white;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 999;
+  text-align: center;
 }
-#overlay button {
-  background:#fff;
-  color:#000;
-  margin-top:20px;
+
+#winScreen button {
+  width: 200px;
 }
 </style>
 </head>
 
 <body>
 
+<div class="container">
+
 <h1>🎁 Telegram Gift Auction</h1>
 
 <div class="card">
-  <p>Лот: <span id="title"></span></p>
-  <p>Цена: $<span id="price"></span></p>
-  <p>Последний: <span id="last"></span></p>
-  <p>⏱ Осталось: <span id="time"></span> сек</p>
+  <h2 id="lotName"></h2>
+  💰 Ставка: $<span id="price"></span><br>
+  ⏱ Время: <span id="time"></span> сек<br>
+  👑 Последний: <span id="last"></span>
+
+  <input id="bidInput" type="number" placeholder="Ваша ставка">
+  <button onclick="placeBid()">Сделать ставку</button>
 </div>
 
 <div class="card">
-  <input
-    id="bidInput"
-    type="number"
-    placeholder="Ваша ставка"
-    inputmode="numeric"
-    enterkeyhint="done"
-  >
-  <button onclick="makeBid()">Сделать ставку</button>
+  💳 Баланс: $<span id="balance"></span>
 </div>
 
 <div class="card">
-  <p>💳 Баланс: $<span id="balance"></span></p>
-  <button class="secondary" onclick="resell()">Перепродать лот</button>
+  <h3>📦 Инвентарь</h3>
+  <div id="inventory">Пусто</div>
 </div>
 
-<!-- OVERLAY -->
-<div id="overlay">
-  <div id="overlayText"></div>
-  <button onclick="closeOverlay()">Выйти</button>
+</div>
+
+<!-- WIN SCREEN -->
+<div id="winScreen">
+  <h1>🎉 ПОЗДРАВЛЯЕМ!</h1>
+  <p>Вы выиграли:</p>
+  <h2 id="winLot"></h2>
+  <button onclick="closeWin()">Продолжить</button>
 </div>
 
 <script>
 const lots = [
-  "🚗 Tesla Model X",
-  "🏠 Luxury House",
-  "💎 Diamond Watch",
-  "🏝 Private Villa",
-  "📱 iPhone Ultra"
+  { name: "🏠 Дом", base: 3000 },
+  { name: "🚗 Машина", base: 5000 },
+  { name: "💎 Часы", base: 1500 },
+  { name: "📱 iPhone Ultra", base: 4000 },
+  { name: "🏖 Вилла", base: 7000 }
 ];
 
-const player = {
-  name: "You",
+let user = {
   balance: 10000,
   inventory: []
 };
 
-const bots = Array.from({ length: 3 + Math.floor(Math.random() * 3) }).map((_, i) => ({
-  name: "Bot_" + (i + 1),
-  balance: 3000 + Math.floor(Math.random() * 6000)
-}));
+let auction = {};
+let timer;
 
-let lot = {};
-let finished = false;
-
-/* ===== NEW LOT (INVERTER) ===== */
-function newLot(owner = "-") {
-  lot = {
-    title: lots[Math.floor(Math.random() * lots.length)],
-    price: 500 + Math.floor(Math.random() * 500),
-    last: owner,
-    endsAt: Date.now() + 30_000
+function newAuction() {
+  const lot = lots[Math.floor(Math.random()*lots.length)];
+  auction = {
+    lot,
+    price: lot.base,
+    time: 30,
+    last: "—"
   };
-  finished = false;
-
-  title.textContent = lot.title;
-  price.textContent = lot.price;
-  last.textContent = lot.last;
+  updateUI();
+  clearInterval(timer);
+  timer = setInterval(tick, 1000);
 }
-newLot();
 
-/* ===== BID ===== */
-function makeBid() {
-  const value = Number(bidInput.value);
-  if (value > lot.price && value <= player.balance) {
-    lot.price = value;
-    lot.last = player.name;
-    price.textContent = lot.price;
-    last.textContent = lot.last;
+function tick() {
+  auction.time--;
+  botsBid();
+  updateUI();
+  if (auction.time <= 0) finishAuction();
+}
+
+function placeBid(name = "Вы") {
+  const input = document.getElementById("bidInput");
+  const value = name === "Вы" ? Number(input.value) : null;
+
+  const bid = name === "Вы" ? value : auction.price + rand(50,300);
+
+  if (name === "Вы" && (bid <= auction.price || bid > user.balance)) return;
+
+  auction.price = bid;
+  auction.last = name;
+  auction.time = Math.min(auction.time + 5, 40);
+
+  input.value = "";
+  updateUI();
+}
+
+function botsBid() {
+  if (Math.random() < 0.4) {
+    const bot = "Bot_" + rand(1,5);
+    placeBid(bot);
   }
-  bidInput.value = "";
 }
 
-/* ===== BOTS ===== */
-setInterval(() => {
-  if (finished) return;
-  bots.forEach(bot => {
-    if (Math.random() < 0.3) {
-      const bid = lot.price + 50 + Math.floor(Math.random() * 200);
-      if (bid <= bot.balance) {
-        lot.price = bid;
-        lot.last = bot.name;
-        price.textContent = lot.price;
-        last.textContent = lot.last;
-      }
-    }
-  });
-}, 3000);
+function finishAuction() {
+  clearInterval(timer);
 
-/* ===== TIMER ===== */
-setInterval(() => {
-  if (finished) return;
-  const left = Math.max(0, Math.floor((lot.endsAt - Date.now()) / 1000));
-  time.textContent = left;
-  if (left === 0) finish();
-}, 1000);
-
-/* ===== FINISH ===== */
-function finish() {
-  finished = true;
-
-  if (lot.last === player.name) {
-    player.balance -= lot.price;
-    player.inventory.push(lot.title);
-    showOverlay(`🎉 ПОЗДРАВЛЯЕМ!<br><br>${lot.title}<br>Цена: $${lot.price}`);
+  if (auction.last === "Вы") {
+    user.balance -= auction.price;
+    user.inventory.push({ name: auction.lot.name, price: auction.price });
+    showWin(auction.lot.name);
   }
 
-  balance.textContent = player.balance;
-  setTimeout(() => newLot(lot.last), 3000);
+  setTimeout(newAuction, 1500);
 }
 
-/* ===== RESELL ===== */
-function resell() {
-  if (player.inventory.length === 0) return;
-  const item = player.inventory.pop();
-  const profit = 500 + Math.floor(Math.random() * 1000);
-  player.balance += profit;
-  balance.textContent = player.balance;
-  showOverlay(`💰 ПЕРЕПРОДАЖА<br><br>${item}<br>+ $${profit}`);
+function showWin(name) {
+  document.getElementById("winLot").innerText = name;
+  document.getElementById("winScreen").style.display = "flex";
+  renderInventory();
 }
 
-/* ===== OVERLAY ===== */
-function showOverlay(text) {
-  overlay.style.display = "flex";
-  overlayText.innerHTML = text;
-}
-function closeOverlay() {
-  overlay.style.display = "none";
+function closeWin() {
+  document.getElementById("winScreen").style.display = "none";
 }
 
-/* INIT */
-balance.textContent = player.balance;
+function renderInventory() {
+  const el = document.getElementById("inventory");
+  if (!user.inventory.length) {
+    el.innerText = "Пусто";
+    return;
+  }
+
+  el.innerHTML = user.inventory.map((i, idx) => `
+    <div>
+      ${i.name} — $${i.price}
+      <button onclick="sell(${idx})">Продать</button>
+    </div>
+  `).join("");
+}
+
+function sell(index) {
+  const item = user.inventory[index];
+  user.balance += Math.floor(item.price * 0.9);
+  user.inventory.splice(index,1);
+  renderInventory();
+  updateUI();
+}
+
+function updateUI() {
+  lotName.innerText = auction.lot.name;
+  price.innerText = auction.price;
+  time.innerText = auction.time;
+  last.innerText = auction.last;
+  balance.innerText = user.balance;
+}
+
+function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min }
+
+newAuction();
 </script>
 
 </body>
